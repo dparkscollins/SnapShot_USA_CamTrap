@@ -1,3 +1,9 @@
+install.packages("readxl")
+install.packages("diplyr")
+install.packages("ggplot2")
+install.packages("lubridate")
+install.packages("tidyverse")
+
 library(readxl)
 library(dplyr) 
 library(ggplot2)
@@ -5,29 +11,32 @@ library(lubridate)
 library(tidyverse)
 
 ### Read in SnapshotUSA data from excel file
-Snapshot2021 <- read_excel("/Users/danielcollins/Desktop/SSFA2021.xlsx")
-                           
-                           
-                           #Did not use this chunk of code
-                           col_types = c("numeric", "numeric", 
-                                         "numeric", "text", "text", "text", 
-                                         "text", "text", "text", "text", "numeric", "numeric", 
-                                         "numeric"))
+Snapshot2021 <- read_excel("/Users/danielcollins/github/SnapShot_USA_CamTrap/SSFA2021.xlsx")
 
-###  I excluded one deploymnet, as the camera failed after a few days
-Snapshot2021<-filter(Snapshot2021, deployment_id != "PA_Forest_Gettysburg_College_21_06 09/13/2021")
+#Exclude Unknown Species, Mammal, Human-Pedestrian, Human-Maintenance crew, 
+#Human-Camera Trapper, and Blank from common_name
+Snapshot2021<-filter(Snapshot2021, common_name !="Unknown species", 
+                     common_name !="Mammal", common_name !="Human-Pedestrian"
+                     , common_name !="Human-Maintenance crew", common_name !=
+                       "Human-Camera Trapper", common_name !="Blank") 
 
-###  I excluded the first and last days, as these were partial days
-Snapshot2021<-filter(Snapshot2021, start_time >"2021-09-14 23:59:59")
-Snapshot2021<-filter(Snapshot2021, start_time <"2021-11-01 16:00:00")
 
+### CREATE FIRST GGPLOT
+ggplot(data = Snapshot2021, mapping = aes(x=start_time, y=common_name)) + 
+  geom_point(mapping = aes(color = common_name)) + theme(legend.position = "none", 
+                                                         panel.background = element_blank())
+  
+  
+
+
+                     
 ### This converts time of start of sequence ($start_time) into digital hours -- I find that easier for plotting
 Snapshot2021$date <-as.Date(Snapshot2021$start_time)
 Snapshot2021$phototime<-as.POSIXct(Snapshot2021$start_time, format = "%H:%M")
 Snapshot2021$phototime <- hour(Snapshot2021$phototime) + minute(Snapshot2021$phototime)/60 + second(Snapshot2021$phototime)/3600
 
 ### calculate sunrise and sunset times for your location (need to install package suncalc)
-install.packages(suncalc)
+install.packages("suncalc")
 library(suncalc) 
 library(scales)
 sun <-
@@ -64,13 +73,13 @@ sun$dawn10<- sun$sunrise - 0.1
 sun$dusk10<- sun$sunset + 0.1      
 
 
-speciesplot<-filter(Snapshot2021, common_name=="White-tailed Deer")				# change species name to filter for a different species
+speciesplot<-filter(Snapshot2021, common_name=="White-tailed Deer")# change species name to filter for a different species
 speciesplot<- full_join(speciesplot,sun, by="date")
 
 ### Note, the font, line and marker dimension here are set so that I can resize the plot to 2000 pixels wide in R-Studio before exporting as png.
 ### geom_ribbons used to plot gray areas for dawn, dusk and dark hours
 ggplot(speciesplot, aes(x = date, y = phototime)) + ggtitle("White-tailed Deer") +                   # change species name to change plot title
-  scale_x_date(date_minor_breaks = "1 day", date_labels = "%b %d", expand = c(0.03, 0.03)) +
+  scale_x_date(date_minor_breaks = "1 day", date_labels = "%b %d", expand = c(0.01, 0.01)) +
   scale_y_continuous(limits=c(0,24), breaks=c(0,2,4,6,8,10,12,14,16,18,20,22,24), expand = c(0, 0)) +
   geom_ribbon(aes(ymin=sunset, ymax=sunrise), 						# 6 min wide ribbons for progressive shading at dawn and dusk
               fill="white") +   #fill color
@@ -123,15 +132,24 @@ ggplot(speciesplot, aes(x = date, y = phototime)) + ggtitle("White-tailed Deer")
   theme(axis.ticks = element_line(colour = "gray50", size = 2), panel.border = element_rect(colour = "gray50", fill=NA, size=2), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank()) +
   labs(x = "Date", y = "Hour (24 hour clock)")
-© 2022 GitHub, Inc.
-Terms
-Privacy
-Security
-Status
-Docs
-Contact GitHub
-Pricing
-API
-Training
-Blog
-About
+
+
+##Finish this code by looking at putting multiple plots on same page, but look at fixing dimensions
+#Put 2 plots on same page
+install.packages("ggpubr")
+library(ggpubr)
+
+ggarrange(deer, coyote + rremove("x.text"), 
+          labels = c("A", "B"),
+          ncol = 2, nrow = 2)
+
+
+
+
+
+
+
+
+
+
+
