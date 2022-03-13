@@ -1,0 +1,21 @@
+project_id,deployment_id,placename,longitude,latitude,start_date,end_date,bait_type,feature_type,camera_id,quiet_period,camera_functioning,sensor_height,sensor_orientation,subproject_name
+2003286,NC_Forest_Iredell_21_dep_05,NC_Forest_Iredell_21_loc_05,-80.891378,35.814027,2021-08-30 ,2021-09-27 ,None,None,2021663,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_07,NC_Forest_Iredell_21_loc_07,-80.907805,35.796279,2021-08-31 ,2021-09-23 ,None,None,2021497,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_08,NC_Forest_Iredell_21_loc_08,-80.906235,35.797317,2021-08-31 ,2021-09-23 ,None,None,2021497,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_10,NC_Forest_Iredell_21_loc_10,-80.909874,35.795803,2021-08-31 ,2021-09-23 ,None,None,2021497,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_09,NC_Forest_Iredell_21_loc_09,-80.904451,35.796383,2021-08-31 ,2021-09-23 ,None,None,2021497,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_06,NC_Forest_Iredell_21_loc_06,-80.887561,35.814135,2021-08-30 ,2021-09-27 ,None,None,2021497,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_01,NC_Forest_Iredell_21_loc_01,-80.886671,35.808047,2021-08-30 ,2021-09-25 ,None,Water source,2021663,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_02,NC_Forest_Iredell_21_loc_02,-80.88662,35.810204,2021-08-30 ,2021-09-25 ,None,None,2021262,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_03,NC_Forest_Iredell_21_loc_03,-80.888337,35.811006,2021-08-30 ,2021-09-25 ,None,None,2021262,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_04,NC_Forest_Iredell_21_loc_04,-80.889366,35.812975,2021-08-30 ,2021-09-27 ,None,None,2021663,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_11,NC_Forest_Iredell_21_loc_11,-80.898086,35.802899,2021-09-24 ,2021-10-22 ,None,None,2021497,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_12,NC_Forest_Iredell_21_loc_12,-80.896458,35.800856,2021-09-24 ,2021-10-22 ,None,None,2027921,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_13,NC_Forest_Iredell_21_loc_13,-80.896895,35.806241,2021-09-25 ,2021-10-22 ,None,None,2021262,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_14,NC_Forest_Iredell_21_loc_14,-80.900625,35.805209,2021-09-25 ,2021-10-22 ,None,None,2021497,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_15,NC_Forest_Iredell_21_loc_15,-80.898112,35.80754,2021-09-25 ,2021-10-22 ,None,None,2021262,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_16,NC_Forest_Iredell_21_loc_16,-80.883926,35.810114,2021-09-27 ,2021-10-25 ,None,None,2021497,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_17,NC_Forest_Iredell_21_loc_17,-80.884057,35.811806,2021-09-27 ,2021-10-25 ,None,None,2021663,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_18,NC_Forest_Iredell_21_loc_18,-80.887546,35.812203,2021-09-27 ,2021-10-25 ,None,None,2021663,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_19,NC_Forest_Iredell_21_loc_19,-80.884395,35.808792,2021-10-12 ,2021-11-02 ,None,None,2021497,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21
+2003286,NC_Forest_Iredell_21_dep_20,NC_Forest_Iredell_21_loc_20,-80.88564,35.807106,2021-10-12 ,2021-11-02 ,None,None,2021663,0,Camera Functioning,Knee height,Parallel,NC_Forest_Iredell_21

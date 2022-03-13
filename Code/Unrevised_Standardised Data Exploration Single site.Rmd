@@ -1,0 +1,607 @@
+---
+title: "Data Exploration"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+
+## README FIRST ##
+#Read and run this chunk of code line by line - there are some question below which you will have to answer/ logic tests to complete. Once you are happy with this block, hit 'knit' above. 
+
+# Load your data [change the files paths to your data locations]
+dat <- read.csv("/Users/danielcollins/GitHub/SnapShot_USA_CamTrap/Raw_Data/sequences_iredell.csv", header=T)
+eff <- read.csv("/Users/danielcollins/GitHub/SnapShot_USA_CamTrap/Raw_Data/deployments_iredell.csv", header=T)
+sta <- read.csv("/Users/danielcollins/GitHub/SnapShot_USA_CamTrap/Raw_Data/covariates_iredell.csv", header=T)
+
+# Timezone [Use UTC if your cameras do not correct for daylight saving time, if they do use the timezone where the data was collected]
+tz <- "UTC"
+
+# Set the "independence" interval in minutes for subsetting "independent" data
+independent <- 30
+
+# Set a single categorical variable of interest from station covariates (`sta`) for summary graphs. If you do not have an appropriate category use "Project.ID".
+category <- "deployment_id"
+
+# Define a colour from the R options to base the colourscheme
+colour <- "lightseagreen"
+
+##############################################################
+##### DATA TESTS #############################################
+##############################################################
+
+# This code will not work unless your data passes the following checks
+
+# 1) dat$Blank must be logical
+is.logical(dat$Blank)
+# If this is FALSE convert this column to TRUE/FALSE
+# If you dont have a Blank column and all of your data have animals in them, run the following:
+# dat$Blank <- FALSE
+
+# 2) All dates must be in YYYY-MM-DD in 'eff' and YYYY-MM-DD HH:MM:SS in 'dat' 
+# If either of the following return NA, you must change your formatting
+strptime(eff$start_date[1], "%Y-%m-%d", tz="UTC")
+strptime(dat$start_time[1], "%Y-%m-%d %H:%M:%S", tz="UTC")
+
+# 3) the dates in 'eff$Camera.Deployment.End.Date' must be the when the camera fails, not when you check the camera. If the camera fails (due to damage or full sd card), use the last day it functions here.  
+
+# 4) Ensure your species names are consistent - check in the list below
+as.data.frame(table(dat$common_name))
+
+# 5) Ensure Number.of.Animals does not have any non-numeric data in! The following should return TRUE
+is.numeric(dat$group_size)
+
+# 6) ensure all deployment starting dates are before deployment retrieval dates
+# Logic = are the stations active for 0 or more days -> all should read TRUE
+table((strptime(eff$end_date, "%Y-%m-%d", tz="UTC")-strptime(eff$start_date, "%Y-%m-%d", tz="UTC"))>=0)
+
+# 7) Do you have all stations represented in both the deployment data and station covariates? If yes, the value should be 0
+length(setdiff(eff$deployment_id, sta$deployment_id))
+# If length > 0, then you have some data missing!
+
+# If all of the above is satisfied -> press 'Knit' above ^
+
+```
+
+
+```{r non-adjustable options, echo=F, include=F}
+#Load Packages
+list.of.packages <- c("leaflet", "dplyr", "colortools", "kriging", "corrplot", "lubridate")
+
+# Check you have them and load them
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+
+lapply(list.of.packages, require, character.only = TRUE)
+
+# Prepare dates
+eff$start_date <- as.POSIXct(strptime(eff$start_date, "%Y-%m-%d", tz ))
+eff$end_date <- as.POSIXct(strptime(eff$end_date, "%Y-%m-%d", tz ))
+dat$start_time <- as.POSIXct(strptime(dat$start_time, "%Y-%m-%d %H:%M:%S", tz ))
+
+# Calculate the number of days each deployment was active
+eff$Days <- as.numeric(round(difftime(eff$end_date, eff$start_date, units="days"),1))
+
+# Count the total number of camera stations
+n.stat <- length(unique(eff$deployment_id))
+
+# Generate colours to display the category levels - R needs them as a factor
+sta[,category] <- factor(sta[,category])
+col.cat <- wheel(colour, num = length(levels(sta[,category])))
+sta$Cols <- col.cat[sta[,category]]
+
+# Code to determine how large the figures will be (we need larger figures if we have more camera deployment ID's)
+eff.height <- 8
+if(length(unique(eff$deployment_id))>80)
+   {
+     eff.height <- length(unique(eff$deployment_id))/10
+   }
+
+sp.height <- 7
+if(length(unique(dat$common_name))>20)
+   {
+     sp.height <- 7+(length(unique(dat$common_name))/8)
+   }
+
+
+```
+
+## `r dat$Project.ID[1]` Project
+
+### Camera locations
+
+To date there have been camera deployments at `r n.stat` unique locations.
+
+```{r map, echo=F}
+
+m <- leaflet() %>%
+  addProviderTiles(providers$Esri.WorldImagery, group="Satellite") %>%  # Add satellite data
+  addProviderTiles(providers$Esri.WorldTopoMap, group="Base") %>%     
+  addCircleMarkers(lng=sta$longitude, lat=sta$latitude,
+                   color=sta$Cols,
+                   popup=paste(sta$deployment_id, sta[,category])) %>%
+ addLegend("bottomleft", colors = col.cat,  labels = levels(sta[,category]),
+    title = category,
+    labFormat = labelFormat(prefix = "$"),
+    opacity = 1
+  ) %>%
+  # Layers control
+  addLayersControl(
+    baseGroups = c("Satellite", "Base"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+m
+
+
+```
+
+### Camera activity through time
+
+The `r n.stat` stations have resulted in a total of `r as.character(round(sum(eff$Days, na.rm=T),0))` camera days (mean = `r round(mean(aggregate(Days~deployment_id, data=eff,  FUN=sum, na.rm=T)$Days),1)` days per station; min = `r round(min(aggregate(Days~deployment_id, data=eff,  FUN=sum, na.rm=T)$Days),1)`; max = `r round(max(aggregate(Days~deployment_id, data=eff,  FUN=sum, na.rm=T)$Days),1)`).The daily break down of camera activity is as follows:
+
+```{r activity, echo=F, fig.height=eff.height}
+
+# Adjust layout
+par(mar=c(2,6,1,1))
+plot(c(min(eff$start_date, na.rm=T), max(eff$end_date, na.rm=T)),      c(1,n.stat), las=1, ylab="", xlab="", type="n", yaxt="n")
+
+axis(2, at= 1:n.stat, labels= unique(eff$deployment_id), las=1, cex.axis=0.4)
+#mtext("Camera Deployment ID", 2, 4)
+# Make lines for each of the cameras
+for(i in 1:length(unique(eff$deployment_id)))
+{
+  abline(h=i, col=rgb(0,0,0,0.1))
+  tmp <- eff[eff$deployment_id==unique(eff$deployment_id)[i],]
+  for(j in 1:nrow(tmp))
+    {
+      lines(c(tmp$start_date[j],
+                       tmp$end_date[j]),
+            c(i,i), lwd=2)
+    }
+  
+}
+
+```
+
+Figure 2: Where black lines denote a camera which is active, white space indicates cameras which are inactive. 
+
+## Detection check
+The following plot helps you determine if you have detections occuring outside of the times cameras are active. *Important note* You can still get detections outside of the activity period if you have decided that the field of view was shifted and the data is un-comparable to that which was collected earlier.  
+
+```{r, include=F}
+# Make species colour codes
+tmp3 <- data.frame("common_name"=unique(dat$common_name),"Colour"= wheel("lightseagreen", num = length(unique(dat$common_name))))
+
+```
+
+
+```{r detecion summary, echo=F, message=F, warning=F}
+
+# Make a separate plot for each 20 stations 
+# To do this make a plot dataframe
+tmp4 <- data.frame("deployment_ID"=unique(eff$deployment_id), "Plot.grp"=ceiling(1:length(unique(eff$deployment_id))/20))
+
+
+eff <- left_join(eff,tmp4)
+j <- 1
+for(j in 1:length(unique(eff$Plot.grp)))
+{
+    layout(matrix(c(1,1,1,2), 1, 4, byrow = TRUE))
+    par(mar=c(2,6,1,1))
+    
+    plot(c(min(eff$start_date, na.rm=T), max(eff$end_date, na.rm=T)),      c(1,length(unique(eff$deployment_id[eff$Plot.grp==j]))), las=1, ylab="", xlab="", type="n", yaxt="n")
+    
+    axis(2, at= 1:length(unique(eff$deployment_id[eff$Plot.grp==j])), labels= unique(eff$deployment_id[eff$Plot.grp==j]), las=1, cex.axis=1)
+    #mtext("Camera Deployment ID", 2, 4)
+    # Make lines for each of the cameras
+    for(i in 1:length(unique(eff$deployment_id[eff$Plot.grp==j])))
+    {
+      abline(h=i, col=rgb(0,0,0,0.1))
+      tmp <- eff[eff$deployment_id==unique(eff$deployment_ID[eff$Plot.grp==j])[i],]
+      
+      tmp2 <- dat[dat$deployment_id==tmp$deployment_id[1],]
+      tmp2 <- left_join(tmp2, tmp3)
+      points(tmp2$start_time, rep(i,nrow(tmp2)), pch="|", col= tmp2$Colour)
+    
+      for(k in 1:nrow(tmp))
+        {
+          lines(c(tmp$start_date[k],
+                           tmp$end_date[k]),
+                c(i,i), lwd=2)
+        }
+      }
+    par(mar=c(0,0,1,0))
+    plot.new()
+    legend("topleft", legend=tmp3$Species, fill=tmp3$Colour, xpd=TRUE, cex=1.1 )
+
+}
+
+```
+
+
+
+## Raw camera detections
+
+To date, there have been `r nrow(dat)` image classifications, `r nrow(dat[dat$Blank==FALSE,])` of which are classified as containing identified species (`r round((nrow(dat[dat$Blank==TRUE,])/nrow(dat))*100,1)`%).
+
+Of the detections which have been identified, there are `r length(levels(factor(dat$Species)))` different categories. 
+
+```{r captures, echo=F, fig.height=sp.height}
+layout(matrix(c(1,1,2), 1, 3, byrow = TRUE))
+det.sum.total <- as.data.frame(count(dat[dat$Blank==FALSE & is.na(dat$common_name)==FALSE,], common_name))
+det.sum.total <- det.sum.total[order(det.sum.total$n),]
+
+par(mar=c(5,16,1,1))
+barplot(det.sum.total$n, names.arg = paste0(det.sum.total$common_name, 
+                                           " (n =", det.sum.total$n,")")   , las=1, cex.names=1, xlab="Total detections", horiz=T)
+i <-1
+for(i in 1:nrow(det.sum.total))
+{
+  tmp <- subset(dat, common_name==det.sum.total$common_name[i])
+  det.sum.total$Locations[i] <- length(unique(tmp$deployment_id))
+}
+par(mar=c(5,1,1,1))
+
+barplot(det.sum.total$Locations/n.stat, las=1, cex.names=0.7, xlab="Proportion of sites detected", horiz=T, xlim=c(0,1))
+abline(v=1, lty=2)
+
+```
+
+
+###This code is not applicable for your datasets and has not been revised yet###
+## Species metadata
+Of the images classified as containing animals, the proportion of photographs assigned to the following categories are as follows:
+
+### Sex
+```{r sex, echo=F, include=F}
+col.name <- "Sex"
+
+tmp <- table(dat[,col.name][dat$Blank==FALSE], as.character(dat$Species[dat$Blank==FALSE]))
+tmp <- as.data.frame.matrix(tmp)
+dat[,col.name] <- factor(dat[,col.name])
+cols <- wheel("lightseagreen", num = length(levels(dat[,col.name])))
+# Name catagories with no data N\A for NOT ASSESSED
+row.names(tmp)[row.names(tmp)==""] <- "N/A"
+# make it the last level
+tmp <- tmp[c(2:nrow(tmp),1),]
+data_percentage <- apply(tmp, 2, function(x){x*100/sum(x,na.rm=T)})
+
+```
+
+
+```{r sex plot, echo=F, fig.height=sp.height}
+layout(matrix(c(1,1,1,2), 1, 4, byrow = TRUE))
+par(mar=c(5,10,1,1))
+barplot(data_percentage , border="white",col= cols, ylab="", las=1, xlab="% of observations", cex.names=0.7, horiz=2)
+par(mar=c(0,0,4,0))
+plot.new()
+legend("topleft", legend=row.names(tmp), fill=cols, xpd=TRUE, cex=1.1 )
+
+```
+
+### Age
+
+```{r age, echo=F, include=F}
+col.name <- "Age"
+
+tmp <- table(dat[,col.name][dat$Blank==FALSE], as.character(dat$Species[dat$Blank==FALSE]))
+tmp <- as.data.frame.matrix(tmp)
+dat[,col.name] <- factor(dat[,col.name])
+cols <- wheel("lightseagreen", num = length(levels(dat[,col.name])))
+# Name catagories with no data N\A for NOT ASSESSED
+row.names(tmp)[row.names(tmp)==""] <- "N/A"
+# make it the last level
+tmp <- tmp[c(2:nrow(tmp),1),]
+
+data_percentage <- apply(tmp, 2, function(x){x*100/sum(x,na.rm=T)})
+
+```
+
+
+```{r age plot, echo=F, fig.height=sp.height}
+layout(matrix(c(1,1,1,2), 1, 4, byrow = TRUE))
+par(mar=c(5,10,1,1))
+barplot(data_percentage , border="white",col= cols, ylab="", las=1, xlab="% of observations", cex.names=0.7, horiz=2)
+par(mar=c(0,0,4,0))
+plot.new()
+legend("topleft", legend=row.names(tmp), fill=cols, xpd=TRUE, cex=1.1 )
+
+```
+
+### Behaviour
+
+```{r Behaviour, echo=F, include=F}
+col.name <- "Behaviour"
+
+tmp <- table(dat[,col.name][dat$Blank==FALSE], as.character(dat$Species[dat$Blank==FALSE]))
+tmp <- as.data.frame.matrix(tmp)
+
+dat[,col.name]<- factor(dat[,col.name])
+cols <- wheel("lightseagreen", num = length(levels(dat[,col.name])))
+# Name catagories with no data N\A for NOT ASSESSED
+row.names(tmp)[row.names(tmp)==""] <- "N/A"
+# make it the last level
+tmp <- tmp[c(2:nrow(tmp),1),]
+
+data_percentage <- apply(tmp, 2, function(x){x*100/sum(x,na.rm=T)})
+
+```
+
+
+```{r behaviour plot, echo=F, fig.height=sp.height}
+layout(matrix(c(1,1,1,2), 1, 4, byrow = TRUE))
+par(mar=c(5,10,1,1))
+barplot(data_percentage , border="white",col= cols, ylab="", las=1, xlab="% of observations", cex.names=0.7, horiz=2)
+par(mar=c(0,0,4,0))
+plot.new()
+legend("topleft", legend=row.names(tmp), fill=cols, xpd=TRUE, cex=1.1 )
+
+```
+
+
+###Code is not completed and does not work
+## Independent camera detections
+```{r indepedents, echo=F, eval=T, message=F}
+
+# Remove observations without animals detected
+dat <- dat[dat$Blank==FALSE & is.na(dat$common_name)==FALSE,]
+dat$common_name <- as.character(dat$common_name)
+dat$deployment_id <- as.character(dat$deployment_id)
+
+# Order the datframe by Site, date
+dat <- dat[order(dat$deployment_id, dat$start_time),]
+
+
+### Code to assign independent observations
+  dat <- dat %>%
+  #filter(Species == i) %>%
+  arrange(project_id,deployment_id) %>%
+  group_by(deployment_id, common_name) %>%
+  mutate(duration = int_length(start_time %--% lag(start_time)))
+
+# loop that assign group ID
+dat$sequence_id <- 9999
+  mins <- independent
+  seq <- as.numeric(paste0(nrow(dat),0))
+  seq <- round(seq,-(nchar(seq)))
+for (i in 2:nrow(dat)) {
+  dat$sequence_id[i-1]  <- paste0("E",format(seq, scientific = F))
+  if(is.na(dat$duration[i]) | abs(dat$duration[i]) > (mins * 60)){
+    seq <- seq + 1
+  }
+}
+
+# Update the information for the last row
+    # group ID  for the last row
+ if(dat$duration[nrow(dat)] < (mins * 60)|
+    is.na(dat$duration[nrow(dat)])){
+   dat$sequence_id[nrow(dat)] <- dat$sequence_id[nrow(dat)-1]
+ } else{
+   dat$sequence_id[nrow(dat)] <- paste0("E",format(seq+1, scientific = F))
+ }
+
+# If there is no minimum groupsize take number of animals
+if(!"Minimum.Group.Size" %in% colnames(dat)) {dat$group_size <- dat$group_size}
+
+# Calculate the event length and size
+
+  # find out the last and the first of the time in the group
+  top <- dat %>% group_by(sequence_id) %>% top_n(1,start_time) %>% select(sequence_id, start_time)
+  bot <- dat %>% group_by(sequence_id) %>% top_n(-1,start_time) %>% select(sequence_id, start_time)
+  names(bot)[2] <- c("start_time_end")
+  dec_no <- dat %>% group_by(sequence_id) %>% summarise(n())
+  event_grp <- dat %>% group_by(sequence_id) %>% summarise(max(group_size))
+
+  # caculate the duration
+  diff <-  top %>% left_join(bot, by="sequence_id") %>%
+      mutate(duration=abs(int_length(start_time %--% start_time_end))) %>%
+      left_join(event_grp, by="sequence_id")%>%
+      left_join(dec_no, by="sequence_id")
+
+  # Remove duplicates
+  diff <- diff[duplicated(diff)==FALSE,]
+
+  names(diff) <- c("sequence_id","start_time.end","start_time.start","Event.Duration","Event.Groupsize","Event.Observations")
+  diff$Date_Time.end<-NULL;diff$Date_Time.start<-NULL
+  dat$duration <-NULL
+  # Merge the data
+  dat <-  dat %>%
+   left_join(diff,by="sequence_id")
+
+# Subset to the first observation in each event
+
+  # Subset to 30 minute indepedents
+ind.dat <- dat[!duplicated(dat$sequence_id),]
+ind.dat <- as.data.frame(ind.dat)
+ind.dat$common_name <-as.factor(ind.dat$common_name)
+
+# Save it for a rainy day
+write.csv(ind.dat, paste0("Output data/",dat$sequence_id[1], "_",independent ,"min_Independent.csv"), row.names = F)
+
+```
+
+###THIS CODE WORKS###
+
+Using an independance threshold of `r independent` minutes, the number of detections is reduced to `r nrow(ind.dat)`. The rest of the analyses are conducted with this data. The summary of detections is as follows:
+
+```{r ind captures, echo=F, fig.height=sp.height, eval=T}
+
+layout(matrix(c(1,1,2), 1, 3, byrow = TRUE))
+det.sum.total <- as.data.frame(count(ind.dat[ind.dat$Blank==FALSE,], common_name))
+det.sum.total <- det.sum.total[order(det.sum.total$n),]
+
+par(mar=c(5,16,1,1))
+barplot(det.sum.total$n, names.arg = paste0(det.sum.total$common_name,
+                                           " (n =", det.sum.total$n,")"), las=1, cex.names=1, xlab="Total detections", horiz=T)
+i <-1
+for(i in 1:nrow(det.sum.total))
+{
+  tmp <- subset(ind.dat, common_name==det.sum.total$common_name[i])
+  det.sum.total$Locations[i] <- length(unique(tmp$deployment_id))
+}
+par(mar=c(5,1,1,1))
+
+barplot(det.sum.total$Locations/n.stat, las=1, cex.names=0.7, xlab="Proportion of sites detected", horiz=T, xlim=c(0,1))
+abline(v=1, lty=2)
+
+```
+
+## Group size distribution
+
+```{r group size, echo=F, eval=T,fig.height=sp.height}
+par(mfrow=c(1,1))
+par(mar=c(5,10,1,1))
+plot(jitter(as.numeric(ind.dat$common_name))~jitter(ind.dat$group_size), xlab="Minimum group size", yaxt="n", las=1, ylab="")
+axis(2, 1:length(unique(ind.dat$common_name)), labels=levels(ind.dat$common_name), las=2, cex.axis=0.6)
+
+```
+
+
+###THIS CODE WORKS###
+# Site-level species covariance
+This plot shows the covariance between different species at the site level for species with >5 unique detections. For example, if you typically get lots of caribou and bears at the same site, they will have positive covariance. If you get caribou where you dont get bears, they will have negative covariance.
+
+```{r covariance, echo=F, fig.height=sp.height,fig.width=sp.height, eval=T}
+par(mfrow=c(1,1))
+tmp <- as.data.frame.matrix(table(ind.dat$deployment_id, ind.dat$common_name))
+tmp <- tmp[colSums(tmp)>5]
+M <- cor(tmp)
+
+corrplot(M, method="color", #col=matrix(col(200)),
+         type="upper", order="hclust",
+         #addCoef.col = "black", # Add coefficient of correlation
+         tl.col="black", tl.srt=45, #Text label color and rotation
+         # Combine with significance
+         #p.mat = p.mat, sig.level = 0.01, insig = "blank",
+         # hide correlation coefficient on the principal diagonal
+         diag=FALSE
+         )
+
+```
+
+
+###This code does not work yet. It has not been revised###
+```{r relative abundance calc, echo=F, warning=F, message=F, eval=T}
+# Calculate relative abundance
+det.sum.site <- as.data.frame(table(ind.dat$deployment_id, ind.dat$common_name))
+colnames(det.sum.site) <- c("Deployment.Location.ID","Species", "Detections")
+det.sum.site$Individuals <- NA
+
+i <- 1
+for(i in 1:nrow(det.sum.site))
+{
+   tmp <- subset(ind.dat, deployment_id==as.character(det.sum.site$deployment_id)[i] &
+              common_name==as.character(det.sum.site$Species)[i])
+   det.sum.site$Individuals[i] <- sum(tmp$group_size, na.rm=T)
+}
+
+# Join with the station effort
+CR.site <- left_join(det.sum.site,aggregate(Days~deployment_id, data=eff,  FUN=sum, na.rm=T) )
+CR.site$CR.100 <- round((CR.site$Individuals/CR.site$Days)*100,3)
+# Add station locations
+CR.site <- left_join(CR.site, sta[, c("Deployment.Location.ID", "Latitude", "Longitude")])
+
+```
+
+
+###THIS CODE WORKS###
+## Site-level temporal plots
+
+### Summary
+Relative abundance across all sites and species:
+Note, when calculating relative abundance, we used the minimum group size column.
+
+```{r, echo=F, eval=T}
+# Capture rates through time
+focal.sp <- as.character(det.sum.total$common_name)
+focal.sp <- focal.sp[order(focal.sp)]
+# Remove any blanks
+focal.sp <- focal.sp[focal.sp!=""]
+
+# We need to know how many detections there are in each month -> create a row lookup
+# This is just a list of ever day a camera was active.
+
+tmp <- eff[is.na(eff$end_date)==F,]
+daily.lookup <- list()
+for(i in 1:nrow(tmp))
+{
+  if(as.Date(tmp$start_date[i])!=as.Date(tmp$end_date[i]))
+  {
+    daily.lookup[[i]] <- data.frame("Date"=seq(as.Date(tmp$start_date[i])+1, as.Date(tmp$end_date[i]), by="days"), "Deployment.Location.ID"=tmp$deployment_id[i])
+  }
+}
+row.lookup <- do.call(rbind, daily.lookup)
+
+# Now determine capture rates
+# Make a data frame by month and year
+mon.dat <- unique(substr(ind.dat$start_time, 1,7))
+mon.dat <- data.frame("Month"=mon.dat[order(mon.dat)], "Effort"= NA)
+mon.dat[as.character(focal.sp)] <- NA
+i<-1
+for(i in 1:nrow(mon.dat))
+{
+  mon.dat$Effort[i] <- nrow(subset(row.lookup, substr(row.lookup$Date,1,7)==mon.dat$Month[i]))
+  mon.dat$Total.CR[i] <- (nrow(subset(ind.dat, substr(ind.dat$start_time,1,7)==mon.dat$Month[i]))/mon.dat$Effort[i])*100
+}
+
+for(i in 1:length(focal.sp))
+{
+  for(j in 1:nrow(mon.dat))
+  {
+    tmp <- subset(ind.dat, common_name==as.character(focal.sp)[i] & substr(ind.dat$start_time,1,7)==mon.dat$Month[j])
+    mon.dat[j, as.character(focal.sp[i])] <- (nrow(tmp)/mon.dat$Effort[j])*100
+  }
+}
+
+mon.dat$timestamp <- strptime(paste0(as.character(mon.dat$Month),"-15"), "%Y-%m-%d")
+
+# Remove any silly values 
+mon.dat <- mon.dat[is.infinite(mon.dat$Total.CR)==F,]
+
+```
+
+
+```{r overall CR, echo=F, fig.height=4, eval=T}
+
+par(mfrow=c(1,2))
+
+plot(mon.dat$timestamp, mon.dat$Effort, ylab="Monthly Effort (days)", xlab="Date", type="l", las=1)
+points(mon.dat$timestamp, mon.dat$Effort, pch=19, col=rgb(0,0,0,0.4))
+
+# Overall capture rate
+plot(mon.dat$timestamp, mon.dat$Total.CR, ylab="Monthly total CR per 100 days", xlab="Date", type="l", las=1, ylim=c(0, max(mon.dat$Total.CR)))
+points(mon.dat$timestamp, mon.dat$Total.CR, pch=19, col=rgb(0,0,0,0.4))
+
+```
+
+###THIS CODE WORKS###
+### Species-specific temporal trends
+Species-level variation in monthly capture rates are as follows:
+
+```{r, echo=F, eval=T}
+par(mfrow=c(2,3))
+for(i in 1:length(focal.sp))
+{
+  plot(mon.dat$timestamp, mon.dat[,as.character(focal.sp)[i]], ylab="Capture Rate per 100 days", xlab="", type="l", las=1, main=focal.sp[i])
+  points(mon.dat$timestamp, mon.dat[,as.character(focal.sp)[i]], pch=19, col=rgb(0,0,0,0.4))
+}
+
+```
+
+## Daily patterns
+For species with enough captures, check that you are detecting them when you would expect. For example, diurnal species should generally be detected in the day! We use a cut-off of at least 24 observations.
+
+```{r activity patterns, message=F, echo=F, warning=F}
+focal.sp <- as.character(det.sum.total$Species[det.sum.total$n>24])
+par(mfrow=c(2,3))
+
+for(i in 1:length(focal.sp))
+{
+  hist(as.numeric(substr(ind.dat$start_time[ind.dat$Species==focal.sp[i]],12,13)), breaks=seq(-0.5,23.5,by=1), las=1, main=focal.sp[i], xlab="Hour")
+}
+
+```
+
+

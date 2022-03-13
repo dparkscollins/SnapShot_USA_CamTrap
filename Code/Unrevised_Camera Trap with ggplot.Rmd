@@ -1,0 +1,183 @@
+---
+title: "CameraTrap with ggplot"
+author: "Parks Collins"
+date: "5/1/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r, echo=FALSE}
+packages <- c(
+  'ggplot2',
+  'ggrepel',
+  'patchwork',
+  'ggraph',
+  'dplyr',
+  'gganimate',
+  'gifski',
+  'ggforce',
+  'ggthemes',
+  'maps',
+  'sf',
+  'tidyr',
+  'concaveman',
+  'remotes'
+)
+# Uncomment the next lines (remove the first #) to install the packages
+# install.packages(packages)
+# remotes::install_github("hrbrmstr/hrbrthemes")
+# Load standard packages
+library(ggplot2)
+
+setwd("/Users/danielcollins/Desktop/Research")
+
+dat<-read.csv("UpRecordTable.csv")
+read.csv("UpRecordTable.csv")
+```
+
+
+
+```{r}
+data("dat")
+# Basic scatterplot
+ggplot(data = dat, 
+       mapping = aes(x = Time, y = Species,)) + 
+  geom_point()
+# Data and mapping can be given both as global (in ggplot()) or per layer
+ggplot() + 
+  geom_point(mapping = aes(x = eruptions, y = waiting),
+             data = faithful)
+```
+
+
+```{r}
+ggplot(dat) + 
+  geom_point(aes(x = Time, y = Species, colour = Species))
+
+ggplot(dat) +
+  geom_boxplot(aes(x = Time, y = Species, fill = Species))
+
+ggplot(dat) +
+  geom_bar(aes(y = Species, fill = Species))
+
+library (ggplot2)
+library(patchwork)
+
+
+p1 <- ggplot(dat) + 
+  geom_point(aes(x = Time, y = Species, colour = Species))
+
+p2 <- ggplot(dat) +
+  geom_boxplot(aes(x = Time, y = Species, fill = Species))
+
+p3 <- ggplot(dat) +
+  geom_bar(aes(y = Species, fill = Species))
+
+p1 + p2 + p3
+
+(p1 | p2) / p3
+
+```
+
+
+```{r}
+
+
+species4activity <- "Canis latrans"
+
+activityDensity(recordTable = mydata, allSpecies = TRUE, writePNG = FALSE, plotR = TRUE, add.rug = TRUE)
+
+```
+
+
+```{r}
+species4activity <- "Coyotes"
+
+activityRadial(recordTable       = dat,
+               species           = species4activity,
+               allSpecies        = FALSE,
+               speciesCol        = "Species",
+               recordDateTimeCol = "DateTimeOriginal",
+               plotR             = TRUE,
+               writePNG          = FALSE,
+               lwd               = 5
+)
+
+```
+
+```{r}
+species4activity <- "Procyon lotor"
+
+activityRadial(recordTable       = dat,
+               species           = species4activity,
+               allSpecies        = FALSE,
+               speciesCol        = "Species",
+               recordDateTimeCol = "DateTimeOriginal",
+               plotR             = TRUE,
+               writePNG          = FALSE,
+               lwd               = 5
+)
+```
+
+
+```{r}
+species4activity <- "Odocoileus virginianus"
+
+activityRadial(recordTable       = dat,
+               species           = "Odocoileus virginianus",
+               allSpecies        = FALSE,
+               speciesCol        = "Species",
+               recordDateTimeCol = "DateTimeOriginal",
+               plotR             = TRUE,
+               writePNG          = FALSE,
+               lwd               = 5
+)
+```
+
+```{r}
+p1 <- activityRadial(recordTable       = dat,
+               species           = "Odocoileus virginianus",
+               allSpecies        = FALSE,
+               speciesCol        = "Species",
+               recordDateTimeCol = "DateTimeOriginal",
+               plotR             = TRUE,
+               writePNG          = FALSE,
+               lwd               = 5
+)
+
+p2 <- activityRadial(recordTable       = dat,
+               species           = "Procyon lotor",
+               allSpecies        = FALSE,
+               speciesCol        = "Species",
+               recordDateTimeCol = "DateTimeOriginal",
+               plotR             = TRUE,
+               writePNG          = FALSE,
+               lwd               = 5
+)
+
+p3 <- activityRadial(recordTable       = dat,
+               species           = "Canis latrans",
+               allSpecies        = FALSE,
+               speciesCol        = "Species",
+               recordDateTimeCol = "DateTimeOriginal",
+               plotR             = TRUE,
+               writePNG          = FALSE,
+               lwd               = 5
+)
+
+p1 + p2 + p3
+```
+
+
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
